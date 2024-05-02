@@ -4,69 +4,76 @@ function convertToNumber(priceFormat) {
   return priceFormat.replace(/\./g, '').replace(',', '.');
 }
 
-var products = [
-  {
-    id: 1,
-    name: "Computador M1-TX",
-    description: "Intel I7, 16GB, SSD 256, HD 1T",
-    price: 4900,
-    category: 1,
-    promotion: true,
-    new: true
-  },
-  {
-    id: 2,
-    name: "Computador M2-TX",
-    description: "Intel I7, 32GB, SSD 512, HD 1T",
-    price: 5600,
-    category: 2,
-    promotion: false,
-    new: true
-  },
-  {
-    id: 3,
-    name: "Computador M1-T",
-    description: "Intel I5, 16GB, HD 1T",
-    price: 2900,
-    category: 3,
-    promotion: false,
-    new: false
-  },
-];
-
-var categories = [
-  { id: 1, name: "Produção Própria" },
-  { id: 2, name: "Nacional" },
-  { id: 3, name: "Importado" }
-];
+var products = [];
+var categories = [];
 
 //onLoad
+loadCategories();
 loadProducts();
+
+//load all categories
+function loadCategories() {
+  $.ajax({
+          url: "http://localhost:8080/categories", 
+          type: "GET",
+          async: false, //usa o ajax para sincronizar a requisição
+          success : (response) => {
+            categories = response;
+            // for (var cat of categories) { // > forma alternativa do prof ao selectCategories()
+            //   document.getElementById("selectCategory").innerHTML += `<option value=${cat.id}>${cat.name}</option>`;
+            // }
+          } 
+  });
+  selectCategories();
+}
 
 //load all products
 function loadProducts() {
-  for (let prod of products) {
-    addNewRow(prod);
-  }
+
+  $.getJSON("http://localhost:8080/products", (response) => {
+    products = response;
+    for (let prod of products) {
+      addNewRow(prod);
+    } 
+  });
+}
+
+function selectCategories() { // > prof. fez diferente com .innerHtml diretamente no loadCategories()
+  var select = document.getElementById("selectCategory");
+  
+  for (let cat of categories) {
+    var option = document.createElement("option");
+    option.value = cat.id;
+    option.text = cat.name;
+    select.add(option);
+  } 
+   
 }
 
 //save a product
 function save() {
 
   var prod = {
-    id: products.length + 1,
-    name: document.getElementById("inputName").value,
-    description: document.getElementById("inputDescription").value,
-    price: convertToNumber(document.getElementById("inputPrice").value),
-    category: document.getElementById("selectCategory").value,
-    promotion: document.getElementById("checkBoxPromotion").checked,
-    new: document.getElementById("checkBoxNewProduct").checked,
+    id:           products.length + 1,
+    name:         document.getElementById("inputName").value,
+    description:  document.getElementById("inputDescription").value,
+    price:        convertToNumber(document.getElementById("inputPrice").value),
+    idCategory:   document.getElementById("selectCategory").value,
+    promotion:    document.getElementById("checkBoxPromotion").checked,
+    newProduct:   document.getElementById("checkBoxNewProduct").checked,
   };
-
-  addNewRow(prod);
-  products.push(prod);
-
-  document.getElementById("formProduct").reset();
+  $.ajax({
+    url: "http://localhost:8080/products", 
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify(prod), //converte o produto em JSON para enviar no corpo da requisição
+    //async: true, //nesse caso pode ser assincrono (default)
+    success : (product) => {
+      addNewRow(product);
+      products.push(product);
+      document.getElementById("formProduct").reset();
+    } 
+  });
 }
 
 //add new row
@@ -99,7 +106,7 @@ function addNewRow(prod) {
   newRow.insertCell().appendChild(priceNode);
 
   //insert product category
-  var categoryNode = document.createTextNode(categories[prod.category - 1].name);
+  var categoryNode = document.createTextNode(categories[prod.idCategory - 1].name);
   newRow.insertCell().appendChild(categoryNode);
 
   //insert product option
@@ -107,7 +114,7 @@ function addNewRow(prod) {
   if (prod.promotion) {
     options += "<span class='badge text-bg-success me-1'>P</span>";
   }
-  if (prod.new) {
+  if (prod.newProduct) {
     options += "<span class='badge text-bg-primary'>L</span>";
   }
   var cell = newRow.insertCell();
